@@ -92,9 +92,9 @@ export function createWeaponRig(camera) {
   }
 
   const state = {
-    def: WEAPONS.rifle,
-    mag: WEAPONS.rifle.mag,
-    reserve: WEAPONS.rifle.reserve,
+    def: WEAPONS.pistol,
+    mag: WEAPONS.pistol.mag,
+    reserve: WEAPONS.pistol.reserve,
     cooldown: 0,
     reloadLeft: 0,
     flash: 0,
@@ -117,7 +117,7 @@ export function createWeaponRig(camera) {
     state.model.position.set(0.24, -0.2, -0.42);
     state.model.rotation.set(0, 0, 0);
   }
-  equip('rifle');
+  equip('pistol');
 
   function step(dt) {
     state.cooldown = Math.max(0, state.cooldown - dt);

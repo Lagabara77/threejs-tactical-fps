@@ -73,7 +73,6 @@ playerHead.userData.part = 'head';
 scene.add(playerTorso, playerHead);
 
 const raycaster = new THREE.Raycaster();
-const shootables = world.shootables.concat(bots.hitMeshes, playerTorso, playerHead);
 const direction = new THREE.Vector3();
 const muzzle = new THREE.Vector3();
 const tmpVec = new THREE.Vector3();
@@ -121,10 +120,14 @@ function syncCamera() {
     const p = target.body.position;
     camera.position.set(p.x - Math.sin(target.body.yaw) * 2.2, p.y + 2.1, p.z - Math.cos(target.body.yaw) * 2.2);
     camera.lookAt(p.x, p.y + 1.3, p.z);
+    camera.updateMatrixWorld();
     return;
   }
   camera.position.set(player.body.position.x, player.body.position.y + player.body.eye, player.body.position.z);
   camera.rotation.set(player.body.pitch, player.body.yaw, 0, 'YXZ');
+  // getWorldDirection and localToWorld read the matrix, not the rotation property,
+  // so refresh it here: aimAt and shoot run between renders in shot mode.
+  camera.updateMatrixWorld();
 }
 
 function aimAt(point) {
@@ -155,10 +158,19 @@ function shoot() {
   direction.y += (rng() * 2 - 1) * spread;
   direction.z += (rng() * 2 - 1) * spread;
   direction.normalize();
+  scene.updateMatrixWorld(true);
   raycaster.set(camera.position, direction);
   raycaster.far = def.range;
   const hits = raycaster.intersectObjects(shootables, false);
   const first = hits[0];
+  match.lastShot = first
+    ? first.object.userData.bot
+      ? `${first.object.userData.bot.name}/${first.object.userData.part}`
+      : first.object.userData.isPlayer ? 'player' : 'world'
+    : 'none';
+  match.lastShotPoint = first ? [first.point.x.toFixed(2), first.point.y.toFixed(2), first.point.z.toFixed(2)] : null;
+  match.lastShotDir = [direction.x.toFixed(3), direction.y.toFixed(3), direction.z.toFixed(3)];
+  match.lastShotObj = first ? `${first.object.type}:${first.object.geometry?.type ?? '?'}:${first.object.position.x.toFixed(1)},${first.object.position.y.toFixed(1)},${first.object.position.z.toFixed(1)}` : null;
   const from = muzzleWorld().clone();
   const end = first ? first.point : tmpVec.copy(camera.position).addScaledVector(direction, def.range).clone();
   effects.spawnTracer(from, end, def.tracer);
@@ -440,10 +452,14 @@ function botEnv() {
 
 function step(dt) {
   match.elapsed += dt;
+  // The rays (player and bot) test the meshes' world matrices, so refresh them
+  // before anything moves or shoots: in shot mode no render has run yet.
+  scene.updateMatrixWorld(true);
   const keys = input.state.keys;
 
   if (match.phase === 'buy') {
     match.buyTimer -= dt;
+    hud.setTimer(match.buyTimer, false);
     if (input.consume('KeyB')) {
       if (hud.buyVisible()) {
         hud.hideBuy();
@@ -545,7 +561,11 @@ function step(dt) {
     const env = botEnv();
     bots.step(dt, env);
   }
-  hud.setAlive(aliveCount('vanguard'), aliveCount('sentinel'));
+  // In the menu the player is not in the world yet, so the alive counts would
+  // wrongly drop by one; they are set once at boot and only updated live.
+  if (match.phase !== 'menu' && match.phase !== 'matchEnd') {
+    hud.setAlive(aliveCount('vanguard'), aliveCount('sentinel'));
+  }
   hud.setCrosshairGap(6 + rig.spread(player.groundSpeed(), input.state.ads) * 2600);
   syncPlayerHitMeshes();
   world.ring.visible = match.phase === 'round' && !match.planted;
@@ -625,20 +645,23 @@ function runShot(name) {
     match.phase = 'round';
     match.roundTimer = 92;
     hud.hideBuy();
-    player.body.position.set(0, 0, 6);
+    player.body.position.set(-2, 0, 6);
     player.body.yaw = 0;
     player.body.pitch = 0.02;
-    // Stage one enemy in the open mid lane and one teammate to the left.
+    // Stage one enemy in the open west-mid lane and one teammate to the left.
+    // The line from the player to the foe clears the mid pillar, so the shot lands.
     const foe = bots.bots.find((b) => b.name === 'Onyx');
-    foe.body.position.set(1.6, 0, -4.5);
+    foe.body.position.set(-2.5, 0, -6.5);
     foe.body.yaw = Math.PI;
     const mate = bots.bots.find((b) => b.name === 'Rook');
-    mate.body.position.set(-3.4, 0, 3.5);
+    mate.body.position.set(-5.5, 0, -0.5);
     mate.body.yaw = 0.2;
     settle(12);
     aimAt(bots.aimPoint(foe));
     foe.hp = 30; // the staged shot is a real kill: pistol torso damage finishes him
     shoot();
+    hud.setAlive(aliveCount('vanguard'), aliveCount('sentinel'));
+    hud.hideBanner(); // the buy-phase banner from startMatch must not cover the fight
     hud.setTimer(92, false);
     hud.setScore(0, 0, 1);
     hud.setObjective('PLANT THE CHARGE AT THE REACTOR');
@@ -660,11 +683,12 @@ function runShot(name) {
   } else if (name === 'end') {
     startMatch();
     match.phase = 'roundEnd';
+    match.roundEndTimer = 30; // the staged frame must not roll into the next buy phase
     match.scoreVan = 1;
     match.roundEndReason = 'Sentinel team eliminated';
-    player.body.position.set(0, 0, -8);
-    player.body.yaw = 0;
-    player.body.pitch = 0;
+    hud.hideBuy();
+    player.body.position.set(2.5, 0, -6);
+    aimAt(new THREE.Vector3(0, 1.6, -13.5));
     settle(10);
     hud.setScore(1, 0, 1);
     hud.setObjective('ROUND WON');
@@ -677,14 +701,15 @@ function runShot(name) {
 function paintTwiceThenReady() {
   let painted = 0;
   function paint() {
-    requestAnimationFrame(paint);
     syncCamera();
     renderer.render(scene, camera);
     painted += 1;
     if (painted === 2) {
       window.__shotReady = true;
       match.frozen = true;
+      return;
     }
+    requestAnimationFrame(paint);
   }
   requestAnimationFrame(paint);
 }
@@ -706,6 +731,9 @@ window.addEventListener('error', (event) => {
 });
 
 spawnBots();
+// The shootables list is built after the bots exist: concat snapshots the array,
+// so building it before spawnBots would leave every bot unhittable.
+const shootables = world.shootables.concat(bots.hitMeshes, playerTorso, playerHead);
 // In the menu the player is not in the world yet: the bots leave him alone.
 player.state.alive = false;
 playerProxy.alive = false;

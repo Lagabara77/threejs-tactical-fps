@@ -3,6 +3,11 @@
 // main.js pushes numbers in and reads the button callbacks out.
 import { WEAPONS, ARMOR_PRICE, GRENADE_PRICE } from './weapons.js';
 
+// In shot mode (?shot=...) the capture happens seconds after the staged action, so
+// the timed fade-outs (hit marker, banner, kill feed, damage flash) are disabled:
+// the frame must still show them when it is taken.
+const SHOT_MODE = new URLSearchParams(window.location.search).has('shot');
+
 const BUY_ITEMS = [
   { id: 'smg', label: 'Hornet-9 SMG', price: WEAPONS.smg.price, desc: 'Fast, close quarters. 28 rounds.' },
   { id: 'rifle', label: 'Longbow-47 Rifle', price: WEAPONS.rifle.price, desc: 'The all-rounder. 30 rounds.' },
@@ -111,6 +116,7 @@ export function createHud() {
     hitMarker(killed, holdMs = 90) {
       hitmarker.classList.add('on');
       hitmarker.classList.toggle('kill', killed);
+      if (SHOT_MODE) return;
       clearTimeout(hitTimer);
       hitTimer = setTimeout(() => hitmarker.classList.remove('on', 'kill'), holdMs);
     },
@@ -118,6 +124,7 @@ export function createHud() {
       damageVignette.classList.add('on');
       damageDir.style.transform = `translate(-50%, -50%) rotate(${angleRad}rad)`;
       damageDir.classList.add('on');
+      if (SHOT_MODE) return;
       setTimeout(() => {
         damageVignette.classList.remove('on');
         damageDir.classList.remove('on');
@@ -131,12 +138,13 @@ export function createHud() {
       row.innerHTML = `${k} <span class="feed-sep">${headshot ? '◉' : '▸'}</span> ${v}`;
       killfeed.prepend(row);
       while (killfeed.children.length > 5) killfeed.removeChild(killfeed.lastChild);
-      setTimeout(() => row.remove(), 6000);
+      if (!SHOT_MODE) setTimeout(() => row.remove(), 6000);
     },
     banner(title, sub, ms = 2600) {
       bannerTitle.textContent = title;
       bannerSub.textContent = sub;
       banner.hidden = false;
+      if (SHOT_MODE) return;
       clearTimeout(bannerTimer);
       bannerTimer = setTimeout(() => { banner.hidden = true; }, ms);
     },

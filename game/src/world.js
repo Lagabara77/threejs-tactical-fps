@@ -9,12 +9,12 @@ import { PALETTE } from './palette.js';
 export const WAYPOINTS = [
   [0, 14], [-7, 14], [7, 14], // 0-2 attacker spawn
   [-16, 10], [-16, 2], [-16, -6], [-12, -11], // 3-6 west lane
-  [0, 8], [0, 0], [0, -6], [0, -11], // 7-10 mid lane + site
+  [0, 8], [-3, 0], [0, -6], [0, -11], // 7-10 mid lane + site
   [16, 10], [16, 2], [16, -6], [12, -11], // 11-14 east lane
-  [0, -15], [-8, -14], [8, -14], // 15-17 defender spawn
-  [-4, -11], [4, -11], // 18-19 site flanks
+  [0, -16], [-8, -14], [8, -14], // 15-17 defender spawn
+  [-4, -9], [4, -9], // 18-19 site flanks
   [-10, 4], [10, 4], // 20-21 cross connectors
-  [-8, -2], [8, -2], // 22-23 mid cross
+  [-8, -5], [8, -5], // 22-23 mid cross
 ];
 export const EDGES = [
   [1, 2, 7, 3, 11], // 0
@@ -23,24 +23,24 @@ export const EDGES = [
   [0, 1, 4, 20], // 3
   [3, 5, 20, 22], // 4
   [4, 6, 22], // 5
-  [5, 18, 10], // 6
-  [0, 8, 20, 21], // 7
-  [7, 9, 22, 23], // 8
-  [8, 10, 22, 23], // 9
-  [9, 6, 14, 18, 19], // 10
+  [5, 18], // 6
+  [0, 20, 21], // 7
+  [], // 8: the mid pillar stands here; no route crosses it
+  [10, 22, 23], // 9
+  [9, 18, 19], // 10
   [0, 2, 12, 21], // 11
   [11, 13, 21, 23], // 12
   [12, 14, 23], // 13
-  [13, 19, 10], // 14
-  [16, 17, 18, 19], // 15
-  [15, 17, 18], // 16
-  [15, 16, 19], // 17
-  [6, 10, 15, 16], // 18
-  [10, 14, 15, 17], // 19
+  [13, 19], // 14
+  [16, 17], // 15
+  [15, 18], // 16
+  [15, 19], // 17
+  [6, 10, 16], // 18
+  [10, 14, 17], // 19
   [1, 3, 4, 7, 22], // 20
   [2, 11, 12, 7, 23], // 21
-  [4, 5, 8, 9, 20], // 22
-  [12, 13, 8, 9, 21], // 23
+  [4, 5, 9, 20], // 22
+  [12, 13, 9, 21], // 23
 ];
 
 export const ATTACKER_SPAWNS = [
@@ -49,7 +49,7 @@ export const ATTACKER_SPAWNS = [
   { x: 7, z: 14, yaw: 0 },
 ];
 export const DEFENDER_SPAWNS = [
-  { x: 0, z: -15, yaw: Math.PI },
+  { x: 0, z: -16, yaw: Math.PI },
   { x: -8, z: -14, yaw: Math.PI },
   { x: 8, z: -14, yaw: Math.PI },
 ];
@@ -95,36 +95,37 @@ export function createWorld(scene) {
   box(48.6, 5, 0.6, 0, 2.5, -18.3, 'surface');
   box(48.6, 5, 0.6, 0, 2.5, 18.3, 'surface');
 
-  // The Reactor: a glowing core at the north end, flanked by pocket walls.
+  // The Reactor: a glowing core at the north end, flanked by low crates.
+  // (The site flanks are open: the old tall pocket walls blocked every route in.)
   box(2.6, 2.8, 2.6, 0, 1.4, -13.5, 'hairline');
   const core = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.6, 1.2), glowMat);
   core.position.set(0, 1.1, -13.5);
   group.add(core);
   box(0.5, 1.2, 0.5, 0, 3.2, -13.5, 'reactor');
-  box(0.5, 3.4, 4.5, -4.6, 1.7, -12.5, 'surface');
-  box(0.5, 3.4, 4.5, 4.6, 1.7, -12.5, 'surface');
+  box(1.2, 1.1, 1.2, -3, 0.55, -13.5, 'crate');
+  box(1.2, 1.1, 1.2, 3, 0.55, -13.5, 'crate');
   box(9.2, 0.5, 0.5, 0, 3.9, -12.5, 'surface');
 
   // Mid plaza: a pillar, a low platform to jump on, and lane walls with gaps.
   box(1.6, 3.4, 1.6, 0, 1.7, 0, 'hairline');
-  box(6, 0.5, 3, 0, 0.25, 5, 'surface');
+  box(4, 0.5, 3, 0, 0.25, 4, 'surface');
   box(3.2, 1.1, 0.8, -6, 0.55, -3, 'hairline');
   box(3.2, 1.1, 0.8, 6, 0.55, -3, 'hairline');
-  box(0.8, 2.6, 5, -9.5, 1.3, 7, 'container');
-  box(0.8, 2.6, 5, 9.5, 1.3, 7, 'containerAlt');
+  box(0.8, 2.6, 5, -20, 1.3, 9, 'container');
+  box(0.8, 2.6, 5, 20, 1.3, 9, 'containerAlt');
 
   // West lane: crates to crouch behind, one tall container.
-  box(1.2, 1.1, 1.2, -16, 0.55, 6, 'crate');
+  box(1.2, 1.1, 1.2, -18, 0.55, 6, 'crate');
   box(1.2, 1.1, 1.2, -18, 0.55, -2, 'crate');
-  box(1.2, 1.1, 1.2, -14, 0.55, -8, 'crate');
+  box(1.2, 1.1, 1.2, -18, 0.55, -8, 'crate');
   box(2.4, 2.4, 2.4, -19.5, 1.2, -9.5, 'container');
-  box(2.2, 0.9, 1.1, -12, 0.45, 3, 'crate');
+  box(2.2, 0.9, 1.1, -12, 0.45, 1, 'crate');
 
   // East lane: containers and crates, mirrored but not identical.
   box(2.4, 2.4, 2.4, 18.5, 1.2, 5.5, 'containerAlt');
-  box(1.2, 1.1, 1.2, 14, 0.55, -1, 'crate');
-  box(1.2, 1.1, 1.2, 17, 0.55, -7, 'crate');
-  box(3.4, 1.1, 0.9, 12, 0.55, -9, 'crate');
+  box(1.2, 1.1, 1.2, 14, 0.55, -4, 'crate');
+  box(1.2, 1.1, 1.2, 17.5, 0.55, -7, 'crate');
+  box(3.4, 1.1, 0.9, 18, 0.55, -8, 'crate');
   box(1.2, 1.1, 1.2, 10, 0.55, 9, 'crate');
 
   // South cover near the attacker spawn.
@@ -142,9 +143,9 @@ export function createWorld(scene) {
   box(30, 0.8, 1.2, 0, 6.4, 0, 'hairline', false);
 
   // Light: dusk hemisphere, a warm key with shadows, a cool fill, the reactor glow.
-  const sky = new THREE.HemisphereLight(new THREE.Color('#4a5568'), new THREE.Color(PALETTE.canvas), 0.95);
+  const sky = new THREE.HemisphereLight(new THREE.Color('#4a5568'), new THREE.Color(PALETTE.canvas), 1.25);
   scene.add(sky);
-  const key = new THREE.DirectionalLight(new THREE.Color('#ffd9a0'), 2.0);
+  const key = new THREE.DirectionalLight(new THREE.Color('#ffd9a0'), 2.3);
   key.position.set(16, 20, 12);
   key.target.position.set(0, 0, -4);
   key.castShadow = true;

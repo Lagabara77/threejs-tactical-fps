@@ -193,7 +193,9 @@ export function createBots(scene, world) {
       const dy = ey - eye.y;
       const dz = ez - eye.z;
       const d = Math.hypot(dx, dy, dz);
-      if (d > 55) continue;
+      // Bots see about 22 m: far enough for a lane fight, short enough that the
+      // other team's spawn is not a shooting gallery.
+      if (d > 22) continue;
       tmpTo.set(ex, ey, ez);
       if (!hasLineOfSight(world.colliders, eye, tmpTo)) continue;
       if (d < bestD) { bestD = d; best = enemy; }
@@ -219,7 +221,9 @@ export function createBots(scene, world) {
     }
 
     // See: pick the nearest visible enemy and start the reaction clock.
-    const seen = nearestEnemy(bot, env);
+    // Bots only fight while the round is live: during the buy phase and after
+    // the round ends they hold their positions and keep their safeties on.
+    const seen = env.phase === 'round' ? nearestEnemy(bot, env) : null;
     if (seen) {
       if (bot.target !== seen.enemy) {
         bot.target = seen.enemy;
@@ -231,7 +235,8 @@ export function createBots(scene, world) {
     }
 
     // Plant / defuse progress: standing still in the ring, uninterrupted.
-    if (bot.action) {
+    // Only while the round is live; a round ending mid-action cancels it.
+    if (bot.action && env.phase === 'round') {
       const dx = bot.body.position.x - SITE.x;
       const dz = bot.body.position.z - SITE.z;
       const inRing = Math.hypot(dx, dz) < SITE.radius;
@@ -297,8 +302,9 @@ export function createBots(scene, world) {
       const dx = SITE.x - body.position.x;
       const dz = SITE.z - body.position.z;
       body.yaw = Math.atan2(-dx, -dz);
-    } else {
+    } else if (env.phase === 'round') {
       // Walk the route. On arrival, hold a while, then pick the next goal.
+      // Outside a live round the bots freeze at their posts.
       if (bot.pathIndex >= bot.path.length) {
         if (env.time > bot.holdUntil) {
           // Attackers at the site start the plant; defenders at the site hold it.
@@ -377,7 +383,7 @@ export function createBots(scene, world) {
     // Aim at the torso, sometimes the head, with an error that grows with distance
     // and with how fast the target is moving.
     const moving = enemy.body ? Math.hypot(enemy.body.velocity.x, enemy.body.velocity.z) : 0;
-    const err = 0.012 + bot.targetDistance * 0.0011 + moving * 0.0012;
+    const err = 0.016 + bot.targetDistance * 0.0013 + moving * 0.0012;
     const aimY = enemy.body.position.y + enemy.body.eye - 0.35 + (env.rng() < 0.14 ? 0.42 : 0);
     tmpAim.set(
       enemy.body.position.x - eye.x + (env.rng() * 2 - 1) * err * bot.targetDistance,

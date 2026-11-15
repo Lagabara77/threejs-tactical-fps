@@ -97,25 +97,26 @@ export function hasLineOfSight(colliders, from, to) {
   for (let i = 0; i < colliders.length; i += 1) {
     const box = colliders[i];
     let tmin = 0;
-    let tmax = length;
+    let tmax = 1; // parameter space: the segment is t in [0, 1], not [0, length].
+    // (Using length here let any wall past the target block the ray.)
     let t1 = (box.min.x - from.x) * invX;
     let t2 = (box.max.x - from.x) * invX;
     if (t1 > t2) { const t = t1; t1 = t2; t2 = t; }
     tmin = Math.max(tmin, t1);
     tmax = Math.min(tmax, t2);
-    if (tmin > tmax) continue;
+    if (Number.isNaN(tmin) || Number.isNaN(tmax) || tmin > tmax) continue;
     t1 = (box.min.y - from.y) * invY;
     t2 = (box.max.y - from.y) * invY;
     if (t1 > t2) { const t = t1; t1 = t2; t2 = t; }
     tmin = Math.max(tmin, t1);
     tmax = Math.min(tmax, t2);
-    if (tmin > tmax) continue;
+    if (Number.isNaN(tmin) || Number.isNaN(tmax) || tmin > tmax) continue;
     t1 = (box.min.z - from.z) * invZ;
     t2 = (box.max.z - from.z) * invZ;
     if (t1 > t2) { const t = t1; t1 = t2; t2 = t; }
     tmin = Math.max(tmin, t1);
     tmax = Math.min(tmax, t2);
-    if (tmin > tmax) continue;
+    if (Number.isNaN(tmin) || Number.isNaN(tmax) || tmin > tmax) continue;
     return false;
   }
   return true;
